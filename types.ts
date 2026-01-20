@@ -13,6 +13,7 @@ export interface Job {
   price: number;
   priceUnit: '건' | '시간' | '주';
   imageUrl: string;
+  images?: string[]; // 상세 페이지용 추가 이미지들
   isPopular?: boolean;
   tags: string[];
   description: string;
@@ -20,6 +21,24 @@ export interface Job {
   lng: number;
   rating: number;
   reviewCount: number;
+  
+  // 상세 정보 필드 추가
+  detailInfo?: {
+    structure?: { rooms: number; bathrooms: number; kitchen: number; livingRoom: number };
+    propertyType?: string;
+    area?: string;
+    elevator?: string;
+    parking?: string;
+    basicOptions?: string[];
+    additionalOptions?: string[];
+    usageGuide?: string;
+    maintenanceItems?: string[];
+    host?: {
+      name: string;
+      imageUrl: string;
+      intro: string;
+    };
+  };
 }
 
 export interface Review {

@@ -9,6 +9,13 @@ interface JobCardProps {
 }
 
 const JobCard: React.FC<JobCardProps> = ({ job, onClick, isActive }) => {
+  const handleCardClick = () => {
+    // 부모의 onClick(핀 선택 등)도 실행하고
+    onClick(job);
+    // 새 탭에서 상세 페이지 열기
+    window.open(`/?jobId=${job.id}`, '_blank');
+  };
+
   return (
     <div 
       className={`bg-white rounded-xl overflow-hidden border transition-all cursor-pointer flex flex-row md:flex-col h-full ${
@@ -16,7 +23,7 @@ const JobCard: React.FC<JobCardProps> = ({ job, onClick, isActive }) => {
           ? 'border-blue-600 shadow-lg ring-2 ring-blue-500 ring-opacity-20 translate-y-[-2px] md:translate-y-[-4px]' 
           : 'border-gray-100 hover:shadow-md'
       }`}
-      onClick={() => onClick(job)}
+      onClick={handleCardClick}
     >
       {/* Mobile Text Content Area / Desktop Lower Area */}
       <div className="p-3 flex-grow flex flex-col min-w-0 order-1 md:order-2">
