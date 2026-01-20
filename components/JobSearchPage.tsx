@@ -98,25 +98,35 @@ const JobSearchPage: React.FC<JobSearchPageProps> = ({ initialCategory }) => {
       </div>
 
       <div className="flex-grow flex flex-col md:flex-row overflow-hidden relative">
-        {/* Left List View */}
+        {/* Map View - Mobile 60% */}
+        <div className="flex-grow order-1 md:order-2 h-[60%] md:h-full relative bg-gray-50 overflow-hidden">
+          <JobMap 
+            jobs={filteredJobs} 
+            selectedJob={selectedJob} 
+            onJobSelect={(job) => setSelectedJob(job)} 
+            onBoundsChange={(bounds) => setMapBounds(bounds)}
+          />
+        </div>
+
+        {/* Left List View - Mobile 40% */}
         <div 
           className={`
             bg-white border-gray-100 flex flex-col transition-all duration-300 ease-in-out z-20 overflow-hidden
             ${isListCollapsed ? 'md:w-0 md:opacity-0 md:min-w-0' : 'md:w-[450px] lg:w-[500px] md:min-w-[400px] md:border-r'}
-            order-2 md:order-1 h-[60%] md:h-full w-full
+            order-2 md:order-1 h-[40%] md:h-full w-full shadow-[0_-4px_20px_rgba(0,0,0,0.05)] md:shadow-none
           `}
         >
-          <div className="p-4 border-b border-gray-50 flex items-center justify-between shrink-0">
-            <h2 className="text-sm font-bold text-gray-400">
-              {selectedJob ? '선택된 알바 정보' : `현재 지도 범위 내 ${listJobs.length}개의 알바`}
+          <div className="p-3 border-b border-gray-50 flex items-center justify-between shrink-0">
+            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-tight">
+              {selectedJob ? '선택된 알바 정보' : `목록 ${listJobs.length}`}
             </h2>
             <div className="md:hidden">
-               <div className="w-10 h-1 bg-gray-200 rounded-full"></div>
+               <div className="w-8 h-1 bg-gray-200 rounded-full"></div>
             </div>
           </div>
           
-          <div className="flex-grow overflow-y-auto p-4 hide-scrollbar">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-4 pb-10">
+          <div className="flex-grow overflow-y-auto p-3 hide-scrollbar">
+            <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-3 pb-10">
               {listJobs.length > 0 ? (
                 listJobs.map(job => (
                   <JobCard 
@@ -127,9 +137,9 @@ const JobSearchPage: React.FC<JobSearchPageProps> = ({ initialCategory }) => {
                   />
                 ))
               ) : (
-                <div className="col-span-full py-20 text-center text-gray-400">
-                  <p className="text-sm">현재 지도 범위 내에 알바가 없습니다.</p>
-                  <p className="text-xs mt-2">지도를 이동하거나 축소해 보세요.</p>
+                <div className="col-span-full py-10 text-center text-gray-400">
+                  <p className="text-sm font-medium">검색 결과가 없습니다.</p>
+                  <p className="text-xs mt-1">다른 지역으로 이동해 보세요.</p>
                 </div>
               )}
             </div>
@@ -153,18 +163,6 @@ const JobSearchPage: React.FC<JobSearchPageProps> = ({ initialCategory }) => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
           </svg>
         </button>
-
-        {/* Map View */}
-        <div className="flex-grow order-1 md:order-2 h-[40%] md:h-full relative bg-gray-50 overflow-hidden">
-          <JobMap 
-            jobs={filteredJobs} 
-            selectedJob={selectedJob} 
-            onJobSelect={(job) => setSelectedJob(job)} 
-            onBoundsChange={(bounds) => setMapBounds(bounds)}
-          />
-          
-          {/* 지도 오버레이 카드는 사용자의 요청에 따라 제거되었습니다. */}
-        </div>
       </div>
     </div>
   );
