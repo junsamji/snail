@@ -1,0 +1,8 @@
+
+{
+  "name": "QuickGig - Freelance Task Platform",
+  "description": "A high-end freelance platform for local services like moving cleaning, pet walking, and small moving, featuring a modern UI with map integration.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
