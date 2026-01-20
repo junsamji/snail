@@ -1,9 +1,16 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Job, Category } from '../types';
 import { MOCK_JOBS } from '../constants';
 import JobCard from './JobCard';
 import JobMap from './JobMap';
+
+// Augmenting Window interface to include naver property for map functionality
+declare global {
+  interface Window {
+    naver: any;
+  }
+}
 
 interface JobSearchPageProps {
   initialCategory?: Category;
@@ -14,12 +21,28 @@ const JobSearchPage: React.FC<JobSearchPageProps> = ({ initialCategory }) => {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isListCollapsed, setIsListCollapsed] = useState(false);
+  const [mapBounds, setMapBounds] = useState<any>(null);
 
-  const filteredJobs = MOCK_JOBS.filter(job => {
-    const matchesCat = selectedCategory === 'all' || job.category === selectedCategory;
-    const matchesQuery = job.title.includes(searchQuery) || job.location.includes(searchQuery);
-    return matchesCat && matchesQuery;
-  });
+  // 카테고리 및 검색어 필터링된 기본 알바 목록
+  const filteredJobs = useMemo(() => {
+    return MOCK_JOBS.filter(job => {
+      const matchesCat = selectedCategory === 'all' || job.category === selectedCategory;
+      const matchesQuery = job.title.includes(searchQuery) || job.location.includes(searchQuery);
+      return matchesCat && matchesQuery;
+    });
+  }, [selectedCategory, searchQuery]);
+
+  // 지도 반경 내에 있는 알바 필터링 (선택된 잡이 없을 때 목록에 표시될 대상)
+  const jobsInBounds = useMemo(() => {
+    if (!mapBounds || !window.naver) return filteredJobs;
+    return filteredJobs.filter(job => {
+      const pos = new window.naver.maps.LatLng(job.lat, job.lng);
+      return mapBounds.hasLatLng(pos);
+    });
+  }, [filteredJobs, mapBounds]);
+
+  // 목록에 표시할 최종 데이터
+  const listJobs = selectedJob ? [selectedJob] : jobsInBounds;
 
   useEffect(() => {
     setSelectedJob(null);
@@ -66,7 +89,7 @@ const JobSearchPage: React.FC<JobSearchPageProps> = ({ initialCategory }) => {
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" strokeWidth="2"/></svg>
           </button>
           <button 
-            onClick={() => {setSearchQuery(''); setSelectedCategory('all');}}
+            onClick={() => {setSearchQuery(''); setSelectedCategory('all'); setSelectedJob(null);}}
             className="px-3 py-1.5 border border-gray-200 rounded text-xs text-gray-600 hover:bg-gray-50 font-medium"
           >
             초기화
@@ -85,7 +108,7 @@ const JobSearchPage: React.FC<JobSearchPageProps> = ({ initialCategory }) => {
         >
           <div className="p-4 border-b border-gray-50 flex items-center justify-between shrink-0">
             <h2 className="text-sm font-bold text-gray-400">
-              총 <span className="text-black">{filteredJobs.length}</span>개의 알바 정보
+              {selectedJob ? '선택된 알바 정보' : `현재 지도 범위 내 ${listJobs.length}개의 알바`}
             </h2>
             <div className="md:hidden">
                <div className="w-10 h-1 bg-gray-200 rounded-full"></div>
@@ -94,17 +117,19 @@ const JobSearchPage: React.FC<JobSearchPageProps> = ({ initialCategory }) => {
           
           <div className="flex-grow overflow-y-auto p-4 hide-scrollbar">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2 gap-4 pb-10">
-              {filteredJobs.length > 0 ? (
-                filteredJobs.map(job => (
+              {listJobs.length > 0 ? (
+                listJobs.map(job => (
                   <JobCard 
                     key={job.id} 
                     job={job} 
+                    isActive={selectedJob?.id === job.id}
                     onClick={(j) => setSelectedJob(j)} 
                   />
                 ))
               ) : (
                 <div className="col-span-full py-20 text-center text-gray-400">
-                  <p className="text-sm">해당 조건에 맞는 알바가 없습니다.</p>
+                  <p className="text-sm">현재 지도 범위 내에 알바가 없습니다.</p>
+                  <p className="text-xs mt-2">지도를 이동하거나 축소해 보세요.</p>
                 </div>
               )}
             </div>
@@ -134,39 +159,11 @@ const JobSearchPage: React.FC<JobSearchPageProps> = ({ initialCategory }) => {
           <JobMap 
             jobs={filteredJobs} 
             selectedJob={selectedJob} 
-            onJobSelect={setSelectedJob} 
+            onJobSelect={(job) => setSelectedJob(job)} 
+            onBoundsChange={(bounds) => setMapBounds(bounds)}
           />
           
-          {selectedJob && (
-            <div className="absolute bottom-4 left-4 right-4 md:bottom-8 md:left-8 md:right-auto md:w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 p-5 z-40 animate-in fade-in slide-in-from-bottom-4">
-              <button 
-                onClick={() => setSelectedJob(null)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-black p-1"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" strokeWidth="2"/></svg>
-              </button>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                  {selectedJob.category}
-                </span>
-                {selectedJob.isPopular && (
-                  <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded">인기</span>
-                )}
-              </div>
-              <h3 className="font-bold text-base md:text-lg mb-1 line-clamp-1">{selectedJob.title}</h3>
-              <p className="text-xs text-gray-500 mb-4">{selectedJob.location}</p>
-              
-              <div className="flex items-center justify-between pt-4 border-t border-gray-50">
-                <div>
-                   <p className="text-[10px] text-gray-400 mb-1 font-medium">예상 급여</p>
-                   <p className="text-lg md:text-xl font-extrabold">{selectedJob.price.toLocaleString()}원 <span className="text-xs font-normal text-gray-400">/ {selectedJob.priceUnit}</span></p>
-                </div>
-                <button className="bg-black text-white px-5 md:px-6 py-2.5 md:py-3 rounded-xl font-bold hover:bg-gray-800 transition-colors text-sm">
-                  지원하기
-                </button>
-              </div>
-            </div>
-          )}
+          {/* 지도 오버레이 카드는 사용자의 요청에 따라 제거되었습니다. */}
         </div>
       </div>
     </div>

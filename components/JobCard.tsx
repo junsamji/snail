@@ -5,12 +5,17 @@ import { Job } from '../types';
 interface JobCardProps {
   job: Job;
   onClick: (job: Job) => void;
+  isActive?: boolean;
 }
 
-const JobCard: React.FC<JobCardProps> = ({ job, onClick }) => {
+const JobCard: React.FC<JobCardProps> = ({ job, onClick, isActive }) => {
   return (
     <div 
-      className="bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full"
+      className={`bg-white rounded-xl overflow-hidden border transition-all cursor-pointer flex flex-col h-full ${
+        isActive 
+          ? 'border-blue-600 shadow-lg ring-2 ring-blue-500 ring-opacity-20 translate-y-[-4px]' 
+          : 'border-gray-100 hover:shadow-md'
+      }`}
       onClick={() => onClick(job)}
     >
       <div className="relative">
@@ -30,6 +35,7 @@ const JobCard: React.FC<JobCardProps> = ({ job, onClick }) => {
       <div className="p-4 flex-grow flex flex-col">
         <div className="flex items-center gap-2 mb-2">
           <span className="text-xs font-medium text-gray-500">{job.location}</span>
+          {isActive && <span className="text-[10px] font-bold text-blue-600">● 선택됨</span>}
         </div>
         <h4 className="font-bold text-sm mb-1 line-clamp-2 leading-tight h-10">{job.title}</h4>
         

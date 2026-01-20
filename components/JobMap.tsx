@@ -5,16 +5,18 @@ import { Job } from '../types';
 interface JobMapProps {
   jobs: Job[];
   selectedJob: Job | null;
-  onJobSelect: (job: Job) => void;
+  onJobSelect: (job: Job | null) => void;
+  onBoundsChange?: (bounds: any) => void;
 }
 
+// Correcting the window interface augmentation to use capitalized 'Window'
 declare global {
   interface Window {
     naver: any;
   }
 }
 
-const JobMap: React.FC<JobMapProps> = ({ jobs, selectedJob, onJobSelect }) => {
+const JobMap: React.FC<JobMapProps> = ({ jobs, selectedJob, onJobSelect, onBoundsChange }) => {
   const mapElement = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -54,8 +56,21 @@ const JobMap: React.FC<JobMapProps> = ({ jobs, selectedJob, onJobSelect }) => {
       }
     };
 
-    mapRef.current = new window.naver.maps.Map(mapElement.current, mapOptions);
+    const map = new window.naver.maps.Map(mapElement.current, mapOptions);
+    mapRef.current = map;
     
+    // 지도 빈 공간 클릭 시 선택 해제
+    window.naver.maps.Event.addListener(map, 'click', () => {
+      onJobSelect(null);
+    });
+
+    // 지도 이동 완료 시 현재 경계 업데이트
+    window.naver.maps.Event.addListener(map, 'idle', () => {
+      if (onBoundsChange) {
+        onBoundsChange(map.getBounds());
+      }
+    });
+
     // 리스트가 접힐 때 지도가 즉시 대응하도록 ResizeObserver 설정
     const observer = new ResizeObserver(() => {
       if (mapRef.current) {
@@ -70,7 +85,7 @@ const JobMap: React.FC<JobMapProps> = ({ jobs, selectedJob, onJobSelect }) => {
     return () => {
       observer.disconnect();
     };
-  }, [isApiReady, jobs]);
+  }, [isApiReady, onBoundsChange, onJobSelect]);
 
   // 마커 생성 및 관리
   useEffect(() => {
@@ -81,14 +96,11 @@ const JobMap: React.FC<JobMapProps> = ({ jobs, selectedJob, onJobSelect }) => {
 
     if (jobs.length === 0) return;
 
-    const bounds = new window.naver.maps.LatLngBounds();
-
     jobs.forEach((job) => {
       const position = new window.naver.maps.LatLng(job.lat, job.lng);
-      bounds.extend(position);
-
       const isActive = selectedJob?.id === job.id;
-      const priceInTenThousand = (job.price / 10000).toFixed(0);
+      // 전체 금액 표시 (toLocaleString 사용)
+      const fullPrice = job.price.toLocaleString();
 
       const content = `
         <div class="custom-marker ${isActive ? 'active' : ''}" id="marker-${job.id}">
@@ -98,7 +110,7 @@ const JobMap: React.FC<JobMapProps> = ({ jobs, selectedJob, onJobSelect }) => {
                 ? 'bg-blue-600 border-blue-600 text-white' 
                 : 'bg-white border-gray-800 text-gray-800 font-bold'
             }">
-              <span style="font-size: 12px; font-weight: 700;">${priceInTenThousand}만</span>
+              <span style="font-size: 12px; font-weight: 700; white-space: nowrap;">${fullPrice}원</span>
               <div class="w-1.5 h-1.5 rounded-full ${isActive ? 'bg-white' : 'bg-blue-500'}"></div>
             </div>
             <div class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] -mt-[1px] ${
@@ -113,39 +125,43 @@ const JobMap: React.FC<JobMapProps> = ({ jobs, selectedJob, onJobSelect }) => {
         map: mapRef.current,
         icon: {
           content: content,
-          size: new window.naver.maps.Size(60, 40),
-          anchor: new window.naver.maps.Point(30, 40),
+          size: new window.naver.maps.Size(100, 40),
+          anchor: new window.naver.maps.Point(50, 40),
         },
         zIndex: isActive ? 100 : 10
       });
 
-      window.naver.maps.Event.addListener(marker, 'click', () => {
+      window.naver.maps.Event.addListener(marker, 'click', (e: any) => {
+        // 이벤트 전파 방지 (지도 클릭 이벤트와 겹치지 않게)
+        if (e.originalEvent) e.originalEvent.stopPropagation();
         onJobSelect(job);
       });
 
       markersRef.current.push(marker);
     });
 
-    if (jobs.length > 1) {
-      mapRef.current.panToBounds(bounds);
-    } else if (jobs.length === 1) {
-      mapRef.current.panTo(new window.naver.maps.LatLng(jobs[0].lat, jobs[0].lng));
+    // 만약 selectedJob이 없고 초기 로딩 시라면 경계 조정 (선택된 게 있으면 이동만 수행)
+    if (!selectedJob && markersRef.current.length > 0) {
+        // bounds 조정은 사용자가 직접 이동하기 전 초기 상태나 필터 변경시에만 필요할 수 있음
     }
-  }, [isApiReady, jobs, onJobSelect, selectedJob?.id]); // selectedJob?.id 추가로 활성화 시 리렌더링 유도
+  }, [isApiReady, jobs, onJobSelect, selectedJob?.id]);
 
-  // 선택된 알바 변경 시 지도 이동
+  // 선택된 알바 변경 시 지도 이동 및 마커 업데이트
   useEffect(() => {
-    if (!isApiReady || !mapRef.current || !selectedJob) return;
+    if (!isApiReady || !mapRef.current) return;
 
-    const targetPos = new window.naver.maps.LatLng(selectedJob.lat, selectedJob.lng);
-    mapRef.current.panTo(targetPos);
+    if (selectedJob) {
+      const targetPos = new window.naver.maps.LatLng(selectedJob.lat, selectedJob.lng);
+      mapRef.current.panTo(targetPos);
+    }
 
+    // 마커 상태 일괄 업데이트
     jobs.forEach((job, index) => {
       const marker = markersRef.current[index];
       if (!marker) return;
 
-      const isActive = selectedJob.id === job.id;
-      const priceInTenThousand = (job.price / 10000).toFixed(0);
+      const isActive = selectedJob?.id === job.id;
+      const fullPrice = job.price.toLocaleString();
 
       const content = `
         <div class="custom-marker ${isActive ? 'active' : ''}">
@@ -155,7 +171,7 @@ const JobMap: React.FC<JobMapProps> = ({ jobs, selectedJob, onJobSelect }) => {
                 ? 'bg-blue-600 border-blue-600 text-white' 
                 : 'bg-white border-gray-800 text-gray-800 font-bold'
             }">
-              <span style="font-size: 12px; font-weight: 700;">${priceInTenThousand}만</span>
+              <span style="font-size: 12px; font-weight: 700; white-space: nowrap;">${fullPrice}원</span>
               <div class="w-1.5 h-1.5 rounded-full ${isActive ? 'bg-white' : 'bg-blue-500'}"></div>
             </div>
             <div class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] -mt-[1px] ${
@@ -167,8 +183,8 @@ const JobMap: React.FC<JobMapProps> = ({ jobs, selectedJob, onJobSelect }) => {
       
       marker.setIcon({
         content: content,
-        size: new window.naver.maps.Size(60, 40),
-        anchor: new window.naver.maps.Point(30, 40),
+        size: new window.naver.maps.Size(100, 40),
+        anchor: new window.naver.maps.Point(50, 40),
       });
       marker.setZIndex(isActive ? 100 : 10);
     });
